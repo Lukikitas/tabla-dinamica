@@ -1,12 +1,12 @@
-import { productoHoraApiConfig, productoHoraPath } from './apiConfig.js';
+import { productoHoraApiConfig } from './apiConfig.js';
 import { calcularCuatroSemanasAnteriores, formatFechaParaApi } from '../utils/dateUtils.js';
 import { parseProductoHoraResponse } from '../utils/productoHoraParser.js';
 
 export function construirUrlProductoHora(fecha) {
   const fechaApi = formatFechaParaApi(fecha);
-  const { baseUrl, restaurante, usuario, cadena } = productoHoraApiConfig;
+  const params = new URLSearchParams({ fecha: fechaApi });
 
-  return `${baseUrl}${productoHoraPath}?restaurante=${restaurante}&fecha_inicio=${fechaApi}&fecha_fin=${fechaApi}&estado=&canal=undefined&usuario=${usuario}&cadena=${cadena}&cajero=undefined`;
+  return `${productoHoraApiConfig.proxyPath}?${params.toString()}`;
 }
 
 export async function obtenerProductoHoraPorFecha(fecha) {
@@ -19,12 +19,23 @@ export async function obtenerProductoHoraPorFecha(fecha) {
     response = await fetch(url);
   } catch (error) {
     throw new Error(
-      `No se pudo consultar ProductoHora para ${fechaApi}. Puede ser un problema de red o CORS. Detalle: ${error.message}`,
+      `No se pudo consultar el proxy ProductoHora para ${fechaApi}. Detalle: ${error.message}`,
     );
   }
 
   if (!response.ok) {
-    throw new Error(`ProductoHora respondio HTTP ${response.status} para la fecha ${fechaApi}.`);
+    let detalle = '';
+
+    try {
+      const errorBody = await response.json();
+      detalle = errorBody.error ? ` ${errorBody.error}` : '';
+    } catch {
+      detalle = '';
+    }
+
+    throw new Error(
+      `El proxy ProductoHora respondio HTTP ${response.status} para la fecha ${fechaApi}.${detalle}`,
+    );
   }
 
   const responseText = await response.text();
